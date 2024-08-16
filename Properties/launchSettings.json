@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "QRCodeTelegram": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

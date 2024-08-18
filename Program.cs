@@ -17,7 +17,6 @@ public class Program
         var telegramBot = new TelegramBotClient(apiKey);
         Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
         Console.WriteLine("bot run!");
-        await telegramBot.DeleteWebhookAsync();
 
         while (true)
         {

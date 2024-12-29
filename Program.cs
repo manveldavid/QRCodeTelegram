@@ -1,12 +1,4 @@
-﻿using QRCoder;
-using SkiaSharp;
-using Telegram.Bot;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using System.Text;
-using System.Globalization;
-
-namespace QRCodeTelegram;
+﻿namespace QRCodeTelegram;
 
 public class Program
 {

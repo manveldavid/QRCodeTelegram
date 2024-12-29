@@ -1,4 +1,4 @@
-﻿namespace QRCodeTelegram;
+namespace QRCodeTelegramBot;
 
 public class Program
 {
@@ -11,9 +11,9 @@ public class Program
 
         await Task.WhenAll([
                 new TelegramBot().RunAsync(
-                    apiKey,
-                    tgBotPollPeriodInSeconds,
-                    CancellationToken.None)
+                apiKey,
+                tgBotPollPeriodInSeconds,
+                CancellationToken.None)
             ]);
     }
 }

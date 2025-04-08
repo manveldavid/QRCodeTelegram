@@ -44,34 +44,41 @@ namespace QRCodeTelegramBot
                             switch (update.Message.Type)
                             {
                                 case MessageType.Text:
-                                        if (string.IsNullOrEmpty(update.Message.Text))
-                                            return;
+                                    if (string.IsNullOrEmpty(update.Message.Text))
+                                        return;
 
-                                        var qrCode = new PngByteQRCode(new QRCodeGenerator().CreateQrCode(Encoding.UTF8.GetBytes(update.Message.Text), QRCodeGenerator.ECCLevel.L)).GetGraphic(5);
-                                        var inputFile = InputFile.FromStream(new MemoryStream(qrCode), "qrCode.png");
+                                    var qrCode = new PngByteQRCode(new QRCodeGenerator().CreateQrCode(Encoding.UTF8.GetBytes(update.Message.Text), QRCodeGenerator.ECCLevel.L)).GetGraphic(5);
+                                    var inputFile = InputFile.FromStream(new MemoryStream(qrCode), "qrCode.png");
 
-                                        await telegramBot.SendPhoto(update.Message.Chat, inputFile, replyParameters: new ReplyParameters { MessageId = update.Message.Id });
+                                    await telegramBot.SendPhoto(update.Message.Chat, inputFile, replyParameters: new ReplyParameters { MessageId = update.Message.Id });
                                     break;
                                 case MessageType.Photo:
-                                        if (update.Message.Photo == null)
-                                            return;
+                                    if (update.Message.Photo == null)
+                                        return;
 
-                                        await using (var ms = new MemoryStream())
+                                    await using (var ms = new MemoryStream())
+                                    {
+                                        var file = await telegramBot.GetInfoAndDownloadFile(update.Message.Photo.First().FileId, ms);
+                                        var decoder = new ZXing.SkiaSharp.BarcodeReader();
+                                        var result = decoder.Decode(SKBitmap.Decode(ms.ToArray()));
+
+                                        if (result?.Text is null)
                                         {
-                                            var file = await telegramBot.GetInfoAndDownloadFile(update.Message.Photo.First().FileId, ms);
-                                            var decoder = new ZXing.SkiaSharp.BarcodeReader()
+                                            decoder = new ZXing.SkiaSharp.BarcodeReader()
                                             {
                                                 AutoRotate = true,
                                                 Options = new ZXing.Common.DecodingOptions()
                                                 {
+
                                                     TryHarder = true,
                                                     TryInverted = true
                                                 }
                                             };
-                                            var result = decoder.Decode(SKBitmap.Decode(ms.ToArray()));
-
-                                            await telegramBot.SendMessage(update.Message.Chat, result?.Text ?? "QR code is not identified", replyParameters: new ReplyParameters { MessageId = update.Message.Id });
+                                            result = decoder.Decode(SKBitmap.Decode(ms.ToArray()));
                                         }
+
+                                        await telegramBot.SendMessage(update.Message.Chat, result?.Text ?? "QR code is not identified", replyParameters: new ReplyParameters { MessageId = update.Message.Id });
+                                    }
                                     break;
                             }
                         }

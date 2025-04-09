@@ -4,11 +4,13 @@ using System.Text;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types;
 using Telegram.Bot;
+using ZXing;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace QRCodeTelegramBot
 {
     public class TelegramBot
-    {
+    {        
         public async Task RunAsync(string apiKey, TimeSpan pollPeriod, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(apiKey))
@@ -56,29 +58,56 @@ namespace QRCodeTelegramBot
                                     if (update.Message.Photo == null)
                                         return;
 
+                                    SKBitmap image = default!;
                                     await using (var ms = new MemoryStream())
                                     {
-                                        var file = await telegramBot.GetInfoAndDownloadFile(update.Message.Photo.First().FileId, ms);
-                                        var decoder = new ZXing.SkiaSharp.BarcodeReader();
-                                        var result = decoder.Decode(SKBitmap.Decode(ms.ToArray()));
+                                        var file = await telegramBot.GetInfoAndDownloadFile(update.Message.Photo.Last().FileId, ms);
+                                        ms.Position = 0;
+                                        image = SKBitmap.Decode(ms);
+                                    }
 
-                                        if (result?.Text is null)
+                                    var decoder = new ZXing.SkiaSharp.BarcodeReader();
+                                    var result = decoder.Decode(image);
+
+                                    if (result?.Text is null)
+                                    {
+                                        decoder.AutoRotate = true;
+                                        decoder.Options = new ZXing.Common.DecodingOptions()
                                         {
-                                            decoder = new ZXing.SkiaSharp.BarcodeReader()
-                                            {
-                                                AutoRotate = true,
-                                                Options = new ZXing.Common.DecodingOptions()
-                                                {
+                                            TryHarder = true,
+                                            TryInverted = true
+                                        };
 
-                                                    TryHarder = true,
-                                                    TryInverted = true
-                                                }
-                                            };
-                                            result = decoder.Decode(SKBitmap.Decode(ms.ToArray()));
+                                        var contrast = 2.5f;
+                                        var blurSigma = 2.5f;
+                                        int width = image.Width;
+                                        int height = image.Height;
+
+                                        for (int y = 0; y < height; y++)
+                                        {
+                                            for (int x = 0; x < width; x++)
+                                            {
+                                                SKColor color = image.GetPixel(x, y);
+                                                byte gray = (byte)(0.299 * color.Red + 0.587 * color.Green + 0.114 * color.Blue);
+                                                image.SetPixel(x, y, new SKColor(gray, gray, gray));
+                                            }
                                         }
 
-                                        await telegramBot.SendMessage(update.Message.Chat, result?.Text ?? "QR code is not identified", replyParameters: new ReplyParameters { MessageId = update.Message.Id });
+                                        SKBitmap processed = new SKBitmap(width, height);
+
+                                        using (var canvas = new SKCanvas(processed))
+                                        using (var paint = new SKPaint() 
+                                        { 
+                                            ColorFilter = SKColorFilter.CreateHighContrast(true, SKHighContrastConfigInvertStyle.NoInvert, contrast),
+                                            ImageFilter = SKImageFilter.CreateBlur(blurSigma, blurSigma),
+                                        })
+                                            canvas.DrawBitmap(image, new SKRect(0, 0, processed.Width, processed.Height), paint);
+
+                                        result = decoder.Decode(processed);
                                     }
+
+                                    await telegramBot.SendMessage(update.Message.Chat, result?.Text ?? "QR code is not identified", replyParameters: new ReplyParameters { MessageId = update.Message.Id });
+
                                     break;
                             }
                         }
